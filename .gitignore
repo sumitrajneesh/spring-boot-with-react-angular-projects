@@ -1,0 +1,46 @@
+# ------------------------------
+# 🌐 Angular (Frontend)
+# ------------------------------
+
+# compiled output
+/dist
+/tmp
+/out-tsc
+/.angular/cache
+
+# dependencies
+/node_modules
+
+# environment files
+/src/environments/environment*.ts
+
+# IDE/editor
+/.idea
+/.vscode
+*.swp
+
+# misc
+.DS_Store
+Thumbs.db
+
+# npm/yarn logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# coverage reports
+/coverage
+
+# Angular build artifacts
+/.angular
+/.angular-build
+/angular.json.backup*
+
+# ------------------------------
+# ☕ Spring Boot (Backend)
+# ------------------------------
+
+# Maven
+/target/
+/.mvn/wrapper/maven-wr

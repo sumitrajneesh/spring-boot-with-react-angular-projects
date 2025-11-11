@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/conduit_db_1
+    username: postgres
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+server:
+  port: 8080
+
+jwt:
+  secret: "wBdIUhqybiegbhMyRs0OHODiUBc7TfamDp7hVKIm4NiNfDj+id3c94K385mxZ2cGqVjbu4e7bPdHxvwoP18mzg=="
+  expiration: 86400000
+
