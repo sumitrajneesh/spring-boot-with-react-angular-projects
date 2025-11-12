@@ -8,12 +8,12 @@ import org.springframework.stereotype.Component;
 public class ProfileMapper {
 
     public ProfileResponse toProfileResponse(ProfileDto profile, boolean following) {
-        ProfileResponse.ProfileData profileData = new ProfileResponse.ProfileData(
+        ProfileResponse.ProfileData data = new ProfileResponse.ProfileData(
                 profile.getUser().getUsername(),
                 profile.getBio(),
                 profile.getImage(),
                 following
         );
-        return new ProfileResponse(profileData);
+        return new ProfileResponse(data);
     }
 }

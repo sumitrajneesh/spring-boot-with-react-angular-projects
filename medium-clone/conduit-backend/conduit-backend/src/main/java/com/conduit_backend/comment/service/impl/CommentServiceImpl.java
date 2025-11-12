@@ -9,6 +9,7 @@ import com.conduit_backend.comment.mapper.CommentMapper;
 import com.conduit_backend.comment.repository.CommentRepository;
 import com.conduit_backend.comment.service.CommentService;
 import com.conduit_backend.profile.dto.ProfileDto;
+import com.conduit_backend.profile.entity.Profile;
 import com.conduit_backend.profile.respository.ProfileRepository;
 import com.conduit_backend.user.entity.User;
 import com.conduit_backend.user.repository.UserRepository;
@@ -56,7 +57,7 @@ public class CommentServiceImpl implements CommentService {
         return commentRepository.findByArticleOrderByCreatedAtDesc(article)
                 .stream()
                 .map(comment -> {
-                    ProfileDto authorProfile = profileRepository.findByUser(comment.getAuthor()).orElse(null);
+                    Profile authorProfile = profileRepository.findByUser(comment.getAuthor()).orElse(null);
                     boolean following = authorProfile != null && authorProfile.getFollowers().contains(currentUser);
                     return commentMapper.toDto(comment, following);
                 })
@@ -80,7 +81,7 @@ public class CommentServiceImpl implements CommentService {
 
         commentRepository.save(comment);
 
-        ProfileDto authorProfile = profileRepository.findByUser(currentUser).orElse(null);
+        Profile authorProfile = profileRepository.findByUser(currentUser).orElse(null);
 
         return commentMapper.toDto(comment, false);
     }

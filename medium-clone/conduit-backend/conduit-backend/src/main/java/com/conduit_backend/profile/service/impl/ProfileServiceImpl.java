@@ -1,85 +1,144 @@
 package com.conduit_backend.profile.service.impl;
 
+import com.conduit_backend.config.JwtTokenProvider;
 import com.conduit_backend.profile.dto.ProfileDto;
 import com.conduit_backend.profile.dto.ProfileResponse;
+import com.conduit_backend.profile.entity.Profile;
 import com.conduit_backend.profile.mapper.ProfileMapper;
 import com.conduit_backend.profile.respository.ProfileRepository;
 import com.conduit_backend.profile.service.ProfileService;
 import com.conduit_backend.user.entity.User;
 import com.conduit_backend.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 @Transactional
 public class ProfileServiceImpl implements ProfileService {
 
-    @Autowired
-    private ProfileRepository profileRepository;
+    private final ProfileRepository profileRepository;
+    private final UserRepository userRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final ProfileMapper profileMapper;
 
-    @Autowired
-    private UserRepository userRepository;
+    // ✅ Get current logged-in user from JWT
+//    private User getCurrentUser() {
+//        String email = jwtTokenProvider.getUsernameFromToken(
+//                (String) org.springframework.security.core.context.SecurityContextHolder
+//                        .getContext()
+//                        .getAuthentication()
+//                        .getCredentials()
+//        );
+//        return userRepository.findByEmail(email)
+//                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+//    }
 
-    @Autowired
-    private ProfileMapper profileMapper;
-
-    // 🧠 Helper: Get currently logged-in user
     private User getCurrentUser() {
-        String currentEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(currentEmail)
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new RuntimeException("User not authenticated");
+        }
+
+        // Spring Security automatically sets the username as authentication.getName()
+        String username = authentication.getName();
+
+        return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
     }
 
+    // ✅ Get profile by username
     @Override
     public ProfileResponse getProfileByUsername(String username) {
         User targetUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found with username: " + username));
 
-        ProfileDto profile = profileRepository.findByUser(targetUser)
+        Profile profile = profileRepository.findByUser(targetUser)
                 .orElseGet(() -> {
-                    ProfileDto p = ProfileDto.builder()
-                            .bio("")
-                            .image(targetUser.getImage())
-                            .user(targetUser)
-                            .build();
-                    return profileRepository.save(p);
+                    Profile newProfile = new Profile();
+                    newProfile.setUser(targetUser);
+                    newProfile.setBio("");
+                    newProfile.setImage("https://example.com/default-image.jpg");
+                    return profileRepository.save(newProfile);
                 });
 
-        User currentUser = getCurrentUser();
-        boolean following = profile.getFollowers().contains(currentUser);
+        boolean isFollowing = false;
+        if (username != null) {
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
-        return profileMapper.toProfileResponse(profile, following);
+            Profile currentProfile = profileRepository.findByUser(currentUser)
+                    .orElseThrow(() -> new RuntimeException("Current profile not found"));
+
+            // ✅ Check if current profile follows the target
+            isFollowing = currentProfile.getFollowing().contains(profile);
+        }
+
+        return new ProfileResponse(
+                profile.getUser().getUsername(),
+                profile.getBio(),
+                profile.getImage(),
+                isFollowing
+        );
     }
 
+    // ✅ Follow user
     @Override
     public ProfileResponse followUser(String username) {
         User currentUser = getCurrentUser();
         User targetUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
-        ProfileDto profile = profileRepository.findByUser(targetUser)
-                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        Profile currentProfile = profileRepository.findByUser(currentUser)
+                .orElseThrow(() -> new RuntimeException("Current profile not found"));
+        Profile targetProfile = profileRepository.findByUser(targetUser)
+                .orElseThrow(() -> new RuntimeException("Target profile not found"));
 
-        profile.getFollowers().add(currentUser);
-        profileRepository.save(profile);
+        // Add follow
+        currentProfile.getFollowing().add(targetProfile);
+        targetProfile.getFollowers().add(currentProfile);
 
-        return profileMapper.toProfileResponse(profile, true);
+        profileRepository.save(currentProfile);
+        profileRepository.save(targetProfile);
+
+        ProfileDto dto = ProfileDto.builder()
+                .id(targetProfile.getId())
+                .bio(targetProfile.getBio())
+                .image(targetProfile.getImage())
+                .user(targetUser)
+                .build();
+
+        return profileMapper.toProfileResponse(dto, true);
     }
 
+    // ✅ Unfollow user
     @Override
     public ProfileResponse unfollowUser(String username) {
         User currentUser = getCurrentUser();
         User targetUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
-        ProfileDto profile = profileRepository.findByUser(targetUser)
-                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        Profile currentProfile = profileRepository.findByUser(currentUser)
+                .orElseThrow(() -> new RuntimeException("Current profile not found"));
+        Profile targetProfile = profileRepository.findByUser(targetUser)
+                .orElseThrow(() -> new RuntimeException("Target profile not found"));
 
-        profile.getFollowers().remove(currentUser);
-        profileRepository.save(profile);
+        // Remove follow
+        currentProfile.getFollowing().remove(targetProfile);
+        targetProfile.getFollowers().remove(currentProfile);
 
-        return profileMapper.toProfileResponse(profile, false);
+        profileRepository.save(currentProfile);
+        profileRepository.save(targetProfile);
+
+        ProfileDto dto = ProfileDto.builder()
+                .id(targetProfile.getId())
+                .bio(targetProfile.getBio())
+                .image(targetProfile.getImage())
+                .user(targetUser)
+                .build();
+
+        return profileMapper.toProfileResponse(dto, false);
     }
 }
