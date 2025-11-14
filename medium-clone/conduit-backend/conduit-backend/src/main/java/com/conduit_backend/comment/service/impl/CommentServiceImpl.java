@@ -8,11 +8,11 @@ import com.conduit_backend.comment.entity.Comment;
 import com.conduit_backend.comment.mapper.CommentMapper;
 import com.conduit_backend.comment.repository.CommentRepository;
 import com.conduit_backend.comment.service.CommentService;
-import com.conduit_backend.profile.dto.ProfileDto;
 import com.conduit_backend.profile.entity.Profile;
 import com.conduit_backend.profile.respository.ProfileRepository;
 import com.conduit_backend.user.entity.User;
 import com.conduit_backend.user.repository.UserRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -41,14 +41,24 @@ public class CommentServiceImpl implements CommentService {
     @Autowired
     private CommentMapper commentMapper;
 
+    // ============================================================
+    // ✔ CORRECT METHOD TO FETCH LOGGED-IN USER FROM JWT
+    // ============================================================
     private User getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+    // ============================================================
+    // ✔ GET ALL COMMENTS FOR ARTICLE
+    // ============================================================
     @Override
     public List<CommentResponse> getCommentsByArticleSlug(String slug) {
+
         Article article = articleRepository.findBySlug(slug)
                 .orElseThrow(() -> new RuntimeException("Article not found"));
 
@@ -57,15 +67,23 @@ public class CommentServiceImpl implements CommentService {
         return commentRepository.findByArticleOrderByCreatedAtDesc(article)
                 .stream()
                 .map(comment -> {
-                    Profile authorProfile = profileRepository.findByUser(comment.getAuthor()).orElse(null);
-                    boolean following = authorProfile != null && authorProfile.getFollowers().contains(currentUser);
+
+                    boolean following = profileRepository
+                            .findByUser(comment.getAuthor())
+                            .map(p -> p.getFollowers().contains(currentUser))
+                            .orElse(false);
+
                     return commentMapper.toDto(comment, following);
                 })
                 .collect(Collectors.toList());
     }
 
+    // ============================================================
+    // ✔ CREATE COMMENT (AUTH REQUIRED)
+    // ============================================================
     @Override
     public CommentResponse addComment(String slug, CommentRequest request) {
+
         Article article = articleRepository.findBySlug(slug)
                 .orElseThrow(() -> new RuntimeException("Article not found"));
 
@@ -81,19 +99,23 @@ public class CommentServiceImpl implements CommentService {
 
         commentRepository.save(comment);
 
-        Profile authorProfile = profileRepository.findByUser(currentUser).orElse(null);
-
-        return commentMapper.toDto(comment, false);
+        return commentMapper.toDto(comment, false); // following=false since you posted it
     }
 
+    // ============================================================
+    // ✔ DELETE COMMENT — ONLY COMMENT AUTHOR CAN DELETE
+    // ============================================================
     @Override
     public void deleteComment(String slug, Long commentId) {
-        Article article = articleRepository.findBySlug(slug)
+
+        articleRepository.findBySlug(slug)
                 .orElseThrow(() -> new RuntimeException("Article not found"));
+
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
 
         User currentUser = getCurrentUser();
+
         if (!comment.getAuthor().getId().equals(currentUser.getId())) {
             throw new RuntimeException("You can delete only your own comments");
         }
