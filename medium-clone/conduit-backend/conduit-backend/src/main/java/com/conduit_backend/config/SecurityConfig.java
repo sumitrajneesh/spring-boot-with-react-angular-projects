@@ -30,7 +30,22 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users", "/api/users/login", "/api/articles/**", "/api/tags").permitAll()
+                        // ⭐ ALLOW SWAGGER
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
+                        // ⭐ PUBLIC APIS
+                        .requestMatchers(
+                                "/api/users",
+                                "/api/users/login",
+                                "/api/articles/**",
+                                "/api/tags"
+                        ).permitAll()
+
+                        // ⭐ EVERYTHING ELSE MUST HAVE JWT
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
