@@ -57,11 +57,11 @@ public class UserController {
             @ApiResponse(responseCode = "400", description = "Invalid request data")
     })
     @PostMapping("/users")
-    public ResponseEntity<Map<String, UserResponse>> register(
-            @Valid @RequestBody UserRegisterRequest request) {
+    public ResponseEntity<UserResponseWrapper> register(
+            @Valid @RequestBody UserRegisterWrapper request) {
 
         UserResponse resp = userService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("user", resp));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new UserResponseWrapper(resp));
     }
 
     // ------------------------------------------------------------
@@ -91,11 +91,11 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "Invalid username or password")
     })
     @PostMapping("/users/login")
-    public ResponseEntity<Map<String, UserResponse>> login(
-            @Valid @RequestBody UserLoginRequest request) {
+    public ResponseEntity<UserResponseWrapper> login(
+            @Valid @RequestBody UserLoginWrapper request) {
 
         UserResponse resp = userService.login(request);
-        return ResponseEntity.ok(Map.of("user", resp));
+        return ResponseEntity.ok(new UserResponseWrapper(resp));
     }
 
     // ------------------------------------------------------------

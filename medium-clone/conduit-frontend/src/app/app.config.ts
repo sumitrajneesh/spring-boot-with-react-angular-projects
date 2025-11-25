@@ -1,14 +1,30 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChangeDetection, importProvidersFrom } from '@angular/core';
+import { ApplicationConfig, provideAppInitializer, inject, importProvidersFrom } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { JwtService } from './core/auth/services/jwt';
+import { apiInterceptor } from './core/interceptors/api-interceptor';
+import { tokenInterceptor } from './core/interceptors/token-interceptor';
+import { errorInterceptor } from './core/interceptors/error-interceptor';
+import { EMPTY } from 'rxjs';
 
 import { routes } from './app.routes';
+import { UserService } from './core/auth/services/user';
+
+export function initAuth(jwtService: JwtService, userService: UserService) {
+  return () => (jwtService.getToken() ? userService.getCurrentUser() : EMPTY)
+}
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideBrowserGlobalErrorListeners(),
-    provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
-    importProvidersFrom(HttpClientModule),   // <-- REQUIRED
+   provideRouter(routes),
+    provideHttpClient(
+      withInterceptors([apiInterceptor, tokenInterceptor, errorInterceptor]),
+    ),
+    provideAppInitializer(() => {
+      const initializerFn = initAuth(inject(JwtService), inject(UserService));
+      return initializerFn();
+    }),
   ]
 };
+
+ 

@@ -27,39 +27,48 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponse register(UserRegisterRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+    public UserResponse register(UserRegisterWrapper request) {
+
+        UserRegisterRequest user = request.getUser(); // extract inner object
+
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             throw new RuntimeException("Email already registered");
         }
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             throw new RuntimeException("Username already exists");
         }
 
-        User user = User.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
+        User newUser = User.builder()
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .password(passwordEncoder.encode(user.getPassword()))
                 .bio("")
                 .image("https://raw.githubusercontent.com/gothinkster/node-express-realworld-example-app/refs/heads/master/src/assets/images/smiley-cyrus.jpeg")
                 .build();
 
-        User saved = userRepository.save(user);
+        User saved = userRepository.save(newUser);
         String token = jwtTokenProvider.generateToken(saved.getUsername());
+
         return userMapper.toUserResponse(saved, token);
     }
 
+
+
     @Override
     @Transactional
-    public UserResponse login(UserLoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+    public UserResponse login(UserLoginWrapper request) {
+
+        UserLoginRequest user = request.getUser();
+
+        User entity = userRepository.findByEmail(user.getEmail())
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if(!passwordEncoder.matches(user.getPassword(), entity.getPassword())) {
             throw new RuntimeException("Invalid credentials");
         }
 
-        String token = jwtTokenProvider.generateToken(user.getUsername());
-        return userMapper.toUserResponse(user, token);
+        String token = jwtTokenProvider.generateToken(entity.getUsername());
+        return userMapper.toUserResponse(entity, token);
     }
 
     @Override
