@@ -9,6 +9,8 @@ import com.conduit_backend.user.repository.UserRepository;
 import com.conduit_backend.user.service.UserService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,10 +26,13 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenBlacklist jwtTokenBlacklist;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     @Override
     @Transactional
     public UserResponse register(UserRegisterWrapper request) {
+
+        log.info("Starting user registration for email={}", request.getUser().getEmail());
 
         UserRegisterRequest user = request.getUser(); // extract inner object
 
@@ -57,6 +62,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse login(UserLoginWrapper request) {
+
+        log.info("Starting user  for email={}", request.getUser().getEmail());
 
         UserLoginRequest user = request.getUser();
 
@@ -106,7 +113,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         userRepository.delete(user);
 
-        jwtTokenBlacklist.add(token); // Optional: blacklist token after delete
+        jwtTokenBlacklist.add(token);
         return ResponseEntity.ok("User deleted successfully");
     }
 
@@ -117,7 +124,6 @@ public class UserServiceImpl implements UserService {
         return ResponseEntity.ok("Logged out successfully");
     }
 
-    // Optional: method to check if token is blacklisted (used in JWT filter)
     public boolean isTokenBlacklisted(String token) {
         return jwtTokenBlacklist.contains(token);
     }
